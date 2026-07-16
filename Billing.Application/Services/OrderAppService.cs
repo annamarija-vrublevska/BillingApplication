@@ -17,64 +17,95 @@ public class OrderAppService(
     {
         await createOrderCommandValidator.ValidateAndThrowAsync(command, cancellationToken);
 
-        var existingOrder = await orderRepository.GetByOrderNumberAsync(command.OrderNumber, cancellationToken);
-        if (existingOrder is not null)
+        var idempotentResult = await TryGetIdempotentResultAsync(command, cancellationToken);
+        if (idempotentResult is not null)
         {
-            if (!existingOrder.IsEquivalentTo(
-                    command.UserId,
-                    command.Amount,
-                    (int)command.PaymentGatewayType,
-                    command.Description))
-            {
-                throw new OrderConflictException(command.OrderNumber);
-            }
-
-            return CreateResultFromOrder(existingOrder);
+            return idempotentResult;
         }
 
-        var order = new Order
-        {
-            Id = Guid.NewGuid(),
-            OrderNumber = command.OrderNumber,
-            UserId = command.UserId,
-            Amount = command.Amount,
-            Description = command.Description,
-            PaymentGatewayId = (int)command.PaymentGatewayType,
-            Status = OrderStatus.Pending,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        await orderRepository.AddAsync(order, cancellationToken);
-        await orderRepository.SaveChangesAsync(cancellationToken);
+        var order = await CreatePendingOrderAsync(command, cancellationToken);
 
         var gateway = paymentGatewayResolver.Resolve(command.PaymentGatewayType);
         var paymentRequest = mapper.Map<PaymentRequest>(command);
 
-        order.Status = OrderStatus.Processing;
-        await orderRepository.SaveChangesAsync(cancellationToken);
+        await MarkOrderAsProcessingAsync(order, cancellationToken);
 
         try
         {
             var paymentResult = await gateway.ProcessPaymentAsync(paymentRequest, cancellationToken);
-
-            order.Status = OrderStatus.Paid;
-            order.ConfirmationNumber = paymentResult.ConfirmationNumber;
-            order.ProcessedAt = DateTime.UtcNow;
-            order.FailureReason = null;
-
-            await orderRepository.SaveChangesAsync(cancellationToken);
+            await MarkOrderAsPaidAsync(order, paymentResult.ConfirmationNumber, cancellationToken);
 
             return mapper.Map<CreateOrderResult>(paymentResult);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            order.Status = OrderStatus.Failed;
-            order.FailureReason = ex.Message;
-            order.ProcessedAt = DateTime.UtcNow;
-
-            await orderRepository.SaveChangesAsync(cancellationToken);
+            await MarkOrderAsFailedAsync(order, ex.Message, cancellationToken);
             throw;
         }
+    }
+
+    private async Task<CreateOrderResult?> TryGetIdempotentResultAsync(
+        CreateOrderCommand command,
+        CancellationToken cancellationToken)
+    {
+        var existingOrder = await orderRepository.GetByOrderNumberAsync(command.OrderNumber, cancellationToken);
+        if (existingOrder is null)
+        {
+            return null;
+        }
+
+        if (!existingOrder.IsEquivalentTo(
+                command.UserId,
+                command.Amount,
+                (int)command.PaymentGatewayType,
+                command.Description))
+        {
+            throw new OrderConflictException(command.OrderNumber);
+        }
+
+        return CreateResultFromOrder(existingOrder);
+    }
+
+    private async Task<Order> CreatePendingOrderAsync(
+        CreateOrderCommand command,
+        CancellationToken cancellationToken)
+    {
+        var order = new Order(
+            orderNumber: command.OrderNumber,
+            userId: command.UserId,
+            amount: command.Amount,
+            description: command.Description,
+            paymentGatewayId: (int)command.PaymentGatewayType);
+
+        await orderRepository.AddAsync(order, cancellationToken);
+        await orderRepository.SaveChangesAsync(cancellationToken);
+        return order;
+    }
+
+    private async Task MarkOrderAsProcessingAsync(
+        Order order,
+        CancellationToken cancellationToken)
+    {
+        order.MarkAsProcessing();
+        await orderRepository.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task MarkOrderAsPaidAsync(
+        Order order,
+        string confirmationNumber,
+        CancellationToken cancellationToken)
+    {
+        order.MarkAsPaid(confirmationNumber);
+        await orderRepository.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task MarkOrderAsFailedAsync(
+        Order order,
+        string failureReason,
+        CancellationToken cancellationToken)
+    {
+        order.MarkAsFailed(failureReason);
+        await orderRepository.SaveChangesAsync(cancellationToken);
     }
 
     private static CreateOrderResult CreateResultFromOrder(Order order)

@@ -2,17 +2,39 @@
 
 public sealed class Order
 {
-    public Guid Id { get; set; }
-    public string OrderNumber { get; set; } = string.Empty;
-    public string UserId { get; set; } = string.Empty;
-    public decimal Amount { get; set; }
-    public string? Description { get; set; }
-    public int PaymentGatewayId { get; set; }
-    public OrderStatus Status { get; set; } = OrderStatus.Pending;
-    public string? ConfirmationNumber { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime? ProcessedAt { get; set; }
-    public string? FailureReason { get; set; }
+    private Order()
+    {
+    }
+
+    public Order(
+        string orderNumber,
+        string userId,
+        decimal amount,
+        string? description,
+        int paymentGatewayId)
+    {
+        Id = Guid.NewGuid();
+        OrderNumber = orderNumber;
+        UserId = userId;
+        Amount = amount;
+        Description = description;
+        PaymentGatewayId = paymentGatewayId;
+        Status = OrderStatus.Pending;
+        CreatedAt = DateTime.UtcNow;
+    }
+
+    public Guid Id { get; init; }
+    public string OrderNumber { get; init; } = string.Empty;
+    public string UserId { get; init; } = string.Empty;
+    public decimal Amount { get; init; }
+    public string? Description { get; init; }
+    public int PaymentGatewayId { get; init; }
+    public DateTime CreatedAt { get; init; }
+
+    public OrderStatus Status { get; private set; } = OrderStatus.Pending;
+    public string? ConfirmationNumber { get; private set; }
+    public DateTime? ProcessedAt { get; private set; }
+    public string? FailureReason { get; private set; }
 
     public bool IsEquivalentTo(
         string userId,
@@ -24,5 +46,29 @@ public sealed class Order
             && Amount == payableAmount
             && PaymentGatewayId == paymentGatewayId
             && string.Equals(Description, description, StringComparison.Ordinal);
+    }
+
+    public void MarkAsFailed(string failureReason)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(failureReason);
+
+        Status = OrderStatus.Failed;
+        FailureReason = failureReason;
+        ProcessedAt = DateTime.UtcNow;
+    }
+
+    public void MarkAsPaid(string confirmationNumber)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(confirmationNumber);
+
+        Status = OrderStatus.Paid;
+        ConfirmationNumber = confirmationNumber;
+        ProcessedAt = DateTime.UtcNow;
+        FailureReason = null;
+    }
+
+    public void MarkAsProcessing()
+    {
+        Status = OrderStatus.Processing;
     }
 }
