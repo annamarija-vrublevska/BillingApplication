@@ -16,15 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="Billing.Application\Billing.Application.csproj" />
-    <ProjectReference Include="Billing.Infrastructure\Billing.Infrastructure.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="Billing.Application\**\*.cs" />
-    <Compile Remove="Billing.Domain\**\*.cs" />
-    <Compile Remove="Billing.Infrastructure\**\*.cs" />
-    <Compile Remove="Billing.Tests\**\*.cs" />
+    <ProjectReference Include="..\Billing.Application\Billing.Application.csproj" />
+    <ProjectReference Include="..\Billing.Infrastructure\Billing.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
