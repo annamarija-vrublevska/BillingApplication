@@ -7,6 +7,7 @@ public sealed class MockFailurePaymentGateway : IPaymentGateway
 {
     public PaymentGatewayType GatewayType => PaymentGatewayType.MockFailure;
     private static readonly TimeSpan ProcessingDelay = TimeSpan.FromSeconds(2);
+    private const string FailureMessage = "Mock failure gateway rejected the payment.";
 
     public async Task<PaymentResult> ProcessPaymentAsync(PaymentRequest request,
         CancellationToken cancellationToken)
@@ -15,10 +16,6 @@ public sealed class MockFailurePaymentGateway : IPaymentGateway
 
         await Task.Delay(ProcessingDelay, cancellationToken);
 
-        return new PaymentResult(
-            OrderNumber: request.OrderNumber,
-            Amount: request.Amount,
-            Timestamp: DateTimeOffset.UtcNow,
-            ConfirmationNumber: Guid.NewGuid().ToString("N"));
+        throw new InvalidOperationException(FailureMessage);
     }
 }
