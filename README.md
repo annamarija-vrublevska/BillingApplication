@@ -202,6 +202,13 @@ Swagger in container run:
 ## `POST /api/orders`
 
 - Creates/processes an order payment
+- Success response body (`PaymentReceiptResponse`) includes:
+  - `orderNumber`
+  - `amount`
+  - `timestamp`
+  - `status`
+  - `confirmationNumber`
+  - `failureReason`
 - Returns:
   - `201 Created` for newly processed order
   - `200 OK` for idempotent replay (same payload, same `OrderNumber`)
@@ -246,6 +253,7 @@ Behavior:
 2. Repeated request with same `OrderNumber` and equivalent payload
    - existing result is returned (`200 OK`)
    - payment is not processed again
+   - replay is indicated by HTTP status (`200`), not a dedicated response flag
 3. Repeated request with same `OrderNumber` but different payload
    - conflict response (`409`)
 
@@ -348,15 +356,3 @@ It submits `POST /api/orders` requests and displays:
 - grouped validation errors
 
 The UI is intentionally minimal and used only for API demonstration.
-
----
-
-# Possible Future Improvements
-
-Potential next steps (without changing core architecture):
-
-- integrate a real payment provider behind `IPaymentGateway`
-- add authentication/authorization for API endpoints
-- add Docker support for local/dev setup
-- add CI pipeline for build/test checks
-- support alternative relational databases (e.g., PostgreSQL or SQL Server)
