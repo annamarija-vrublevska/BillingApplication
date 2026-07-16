@@ -177,6 +177,24 @@ If you prefer explicit migration execution (when EF CLI tools are installed), ru
 dotnet ef database update --project .\Billing.Infrastructure --startup-project .\Billing.Api
 ```
 
+## 5. Run with Docker
+
+Build image:
+
+```bash
+docker build -t billing-api .
+```
+
+Run container:
+
+```bash
+docker run --rm -p 8080:8080 billing-api
+```
+
+Swagger in container run:
+
+- `http://localhost:8080/swagger`
+
 ---
 
 # API
@@ -342,4 +360,3 @@ Potential next steps (without changing core architecture):
 - add Docker support for local/dev setup
 - add CI pipeline for build/test checks
 - support alternative relational databases (e.g., PostgreSQL or SQL Server)
-

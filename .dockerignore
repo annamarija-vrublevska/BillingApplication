@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.git/
+.vs/
+.github/
+Billing.IntegrationTests/
+Billing.Tests/
+*.user
+*.suo
+*.log
+*.db
