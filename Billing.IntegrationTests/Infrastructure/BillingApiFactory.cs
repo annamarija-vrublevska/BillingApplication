@@ -1,5 +1,5 @@
 using Billing.Application.Interfaces;
-using Billing.Application.Models;
+using Billing.Domain.Models;
 using Billing.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;

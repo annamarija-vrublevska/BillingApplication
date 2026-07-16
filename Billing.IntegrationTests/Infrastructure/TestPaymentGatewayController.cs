@@ -1,4 +1,5 @@
 using Billing.Application.Models;
+using Billing.Domain.Models;
 
 namespace Billing.IntegrationTests.Infrastructure;
 

@@ -47,8 +47,10 @@ namespace Billing.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("PaymentGatewayId")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("PaymentGateway")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("TEXT");

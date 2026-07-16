@@ -11,19 +11,22 @@ public sealed class Order
         string userId,
         decimal amount,
         string? description,
-        int paymentGatewayId)
+        PaymentGatewayType paymentGateway)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(orderNumber);
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(amount);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(paymentGatewayId);
+        if (!Enum.IsDefined(paymentGateway))
+        {
+            throw new ArgumentOutOfRangeException(nameof(paymentGateway));
+        }
 
         Id = Guid.NewGuid();
         OrderNumber = orderNumber;
         UserId = userId;
         Amount = amount;
         Description = description;
-        PaymentGatewayId = paymentGatewayId;
+        PaymentGateway = paymentGateway;
         Status = OrderStatus.Pending;
         CreatedAt = DateTime.UtcNow;
     }
@@ -33,7 +36,7 @@ public sealed class Order
     public string UserId { get; init; } = string.Empty;
     public decimal Amount { get; init; }
     public string? Description { get; init; }
-    public int PaymentGatewayId { get; init; }
+    public PaymentGatewayType PaymentGateway { get; init; }
     public DateTime CreatedAt { get; init; }
 
     public OrderStatus Status { get; private set; } = OrderStatus.Pending;
@@ -44,12 +47,12 @@ public sealed class Order
     public bool IsEquivalentTo(
         string userId,
         decimal payableAmount,
-        int paymentGatewayId,
+        PaymentGatewayType paymentGateway,
         string? description)
     {
         return UserId == userId
             && Amount == payableAmount
-            && PaymentGatewayId == paymentGatewayId
+            && PaymentGateway == paymentGateway
             && string.Equals(Description, description, StringComparison.Ordinal);
     }
 

@@ -1,4 +1,4 @@
-﻿using Billing.Application.Models;
+﻿using Billing.Domain.Models;
 using System.Text.Json.Serialization;
 
 namespace Billing.Api.Models;

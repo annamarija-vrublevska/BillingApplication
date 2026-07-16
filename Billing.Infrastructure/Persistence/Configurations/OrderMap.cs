@@ -29,7 +29,9 @@ public sealed class OrderMap : IEntityTypeConfiguration<Order>
         builder.Property(order => order.Description)
             .HasMaxLength(500);
 
-        builder.Property(order => order.PaymentGatewayId)
+        builder.Property(order => order.PaymentGateway)
+            .HasConversion<string>()
+            .HasMaxLength(32)
             .IsRequired();
 
         builder.Property(order => order.Status)

@@ -1,4 +1,4 @@
-using Billing.Application.Models;
+using Billing.Domain.Models;
 
 namespace Billing.Application.Exceptions;
 

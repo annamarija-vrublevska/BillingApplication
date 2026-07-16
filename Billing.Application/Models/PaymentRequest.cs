@@ -1,3 +1,5 @@
+using Billing.Domain.Models;
+
 namespace Billing.Application.Models;
 
 public sealed record PaymentRequest(

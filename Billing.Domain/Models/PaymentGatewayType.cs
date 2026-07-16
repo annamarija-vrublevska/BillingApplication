@@ -1,4 +1,4 @@
-namespace Billing.Application.Models;
+namespace Billing.Domain.Models;
 
 public enum PaymentGatewayType
 {
