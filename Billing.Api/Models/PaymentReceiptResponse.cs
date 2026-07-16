@@ -9,4 +9,4 @@ public sealed record PaymentReceiptResponse(
     OrderStatus Status,
     string? ConfirmationNumber,
     string? FailureReason,
-    bool IsIdempotentReplay);
+    bool IsExistingOrder);

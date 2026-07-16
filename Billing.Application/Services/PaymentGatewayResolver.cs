@@ -1,6 +1,6 @@
-﻿using Billing.Application.Interfaces;
-using Billing.Application.Models;
-using Billing.Application.Exceptions;
+﻿using Billing.Application.Exceptions;
+using Billing.Application.Interfaces;
+using Billing.Domain.Models;
 
 namespace Billing.Application.Services;
 

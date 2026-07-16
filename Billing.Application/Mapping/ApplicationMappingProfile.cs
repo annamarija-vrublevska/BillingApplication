@@ -28,7 +28,7 @@ public sealed class ApplicationMappingProfile : Profile
                 nameof(CreateOrderResult.FailureReason),
                 opt => opt.MapFrom(_ => (string?)null))
             .ForCtorParam(
-                nameof(CreateOrderResult.IsIdempotentReplay),
+                nameof(CreateOrderResult.IsExistingOrder),
                 opt => opt.MapFrom(_ => false));
     }
 }

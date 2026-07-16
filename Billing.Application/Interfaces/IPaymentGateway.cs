@@ -1,4 +1,5 @@
 ﻿using Billing.Application.Models;
+using Billing.Domain.Models;
 using PaymentResult = Billing.Application.Models.PaymentResult;
 
 namespace Billing.Application.Interfaces;

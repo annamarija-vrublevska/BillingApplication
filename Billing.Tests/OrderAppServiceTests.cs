@@ -22,14 +22,14 @@ public sealed class OrderAppServiceTests
         var service = CreateService(repository, gateway);
         var command = CreateValidCommand();
 
-        var result = await service.ProcessOrder(command, CancellationToken.None);
+        var result = await service.ProcessOrderAsync(command, CancellationToken.None);
 
         result.OrderNumber.Should().Be(command.OrderNumber);
         result.Amount.Should().Be(command.Amount);
         result.Status.Should().Be(OrderStatus.Paid);
         result.ConfirmationNumber.Should().Be("CONF-MOCK");
         result.FailureReason.Should().BeNull();
-        result.IsIdempotentReplay.Should().BeFalse();
+        result.IsExistingOrder.Should().BeFalse();
         gateway.CallCount.Should().Be(1);
         repository.AddCalls.Should().Be(1);
     }
@@ -42,7 +42,7 @@ public sealed class OrderAppServiceTests
         var service = CreateService(repository, gateway);
         var command = CreateValidCommand() with { OrderNumber = string.Empty };
 
-        Func<Task> act = () => service.ProcessOrder(command, CancellationToken.None);
+        Func<Task> act = () => service.ProcessOrderAsync(command, CancellationToken.None);
 
         var exceptionAssertion = await act.Should().ThrowAsync<ValidationException>();
         exceptionAssertion.Which.Errors.Select(error => error.PropertyName)
@@ -59,7 +59,7 @@ public sealed class OrderAppServiceTests
         var service = CreateService(repository, gateway);
         var command = CreateValidCommand() with { Amount = 0 };
 
-        Func<Task> act = () => service.ProcessOrder(command, CancellationToken.None);
+        Func<Task> act = () => service.ProcessOrderAsync(command, CancellationToken.None);
 
         var exceptionAssertion = await act.Should().ThrowAsync<ValidationException>();
         exceptionAssertion.Which.Errors.Select(error => error.PropertyName)
@@ -76,7 +76,7 @@ public sealed class OrderAppServiceTests
         var service = CreateService(repository, gateway);
         var command = CreateValidCommand() with { PaymentGatewayType = (PaymentGatewayType)999 };
 
-        Func<Task> act = () => service.ProcessOrder(command, CancellationToken.None);
+        Func<Task> act = () => service.ProcessOrderAsync(command, CancellationToken.None);
 
         var exceptionAssertion = await act.Should().ThrowAsync<ValidationException>();
         exceptionAssertion.Which.Errors.Select(error => error.PropertyName)
@@ -93,7 +93,7 @@ public sealed class OrderAppServiceTests
             userId: "user-1",
             amount: 125.50m,
             description: "Test",
-            paymentGatewayId: (int)PaymentGatewayType.MockSuccess);
+            paymentGateway: PaymentGatewayType.MockSuccess);
         existingOrder.MarkAsPaid("CONF-100");
 
         var repository = new FakeOrderRepository(existingOrder);
@@ -106,14 +106,14 @@ public sealed class OrderAppServiceTests
             Amount: 125.50m,
             PaymentGatewayType: PaymentGatewayType.MockSuccess,
             Description: "Test");
-        var result = await service.ProcessOrder(command, CancellationToken.None);
+        var result = await service.ProcessOrderAsync(command, CancellationToken.None);
 
         result.OrderNumber.Should().Be("ORD-100");
         result.Amount.Should().Be(125.50m);
         result.ConfirmationNumber.Should().Be("CONF-100");
         result.Status.Should().Be(OrderStatus.Paid);
         result.FailureReason.Should().BeNull();
-        result.IsIdempotentReplay.Should().BeTrue();
+        result.IsExistingOrder.Should().BeTrue();
         gateway.CallCount.Should().Be(0);
         repository.AddCalls.Should().Be(0);
     }
@@ -126,7 +126,7 @@ public sealed class OrderAppServiceTests
             userId: "user-1",
             amount: 44.10m,
             description: "Retry me",
-            paymentGatewayId: (int)PaymentGatewayType.MockFailure);
+            paymentGateway: PaymentGatewayType.MockFailure);
         existingOrder.MarkAsFailed("Gateway timeout");
 
         var repository = new FakeOrderRepository(existingOrder);
@@ -140,14 +140,14 @@ public sealed class OrderAppServiceTests
             PaymentGatewayType: PaymentGatewayType.MockFailure,
             Description: "Retry me");
 
-        var result = await service.ProcessOrder(command, CancellationToken.None);
+        var result = await service.ProcessOrderAsync(command, CancellationToken.None);
 
         result.OrderNumber.Should().Be("ORD-FAILED-1");
         result.Amount.Should().Be(44.10m);
         result.Status.Should().Be(OrderStatus.Failed);
         result.ConfirmationNumber.Should().BeNull();
         result.FailureReason.Should().Be("Gateway timeout");
-        result.IsIdempotentReplay.Should().BeTrue();
+        result.IsExistingOrder.Should().BeTrue();
         gateway.CallCount.Should().Be(0);
         repository.AddCalls.Should().Be(0);
     }
@@ -160,7 +160,7 @@ public sealed class OrderAppServiceTests
             userId: "user-1",
             amount: 200m,
             description: "Original",
-            paymentGatewayId: (int)PaymentGatewayType.MockSuccess);
+            paymentGateway: PaymentGatewayType.MockSuccess);
         existingOrder.MarkAsPaid("CONF-200");
 
         var repository = new FakeOrderRepository(existingOrder);
@@ -173,7 +173,7 @@ public sealed class OrderAppServiceTests
             Amount: 300m,
             PaymentGatewayType: PaymentGatewayType.MockSuccess,
             Description: "Original");
-        Func<Task> act = () => service.ProcessOrder(command, CancellationToken.None);
+        Func<Task> act = () => service.ProcessOrderAsync(command, CancellationToken.None);
         var exceptionAssertion = await act.Should().ThrowAsync<OrderConflictException>();
 
         exceptionAssertion.Which.OrderNumber.Should().Be("ORD-200");

@@ -13,7 +13,7 @@ public class OrderAppService(
     IMapper mapper,
     IValidator<CreateOrderCommand> createOrderCommandValidator) : IOrderAppService
 {
-    public async Task<CreateOrderResult> ProcessOrder(CreateOrderCommand command, CancellationToken cancellationToken)
+    public async Task<CreateOrderResult> ProcessOrderAsync(CreateOrderCommand command, CancellationToken cancellationToken)
     {
         await createOrderCommandValidator.ValidateAndThrowAsync(command, cancellationToken);
 
@@ -42,7 +42,34 @@ public class OrderAppService(
         }
 
         await MarkOrderAsPaidAsync(order, paymentResult.ConfirmationNumber, cancellationToken);
-        return CreateResultFromOrder(order, isIdempotentReplay: false);
+        return CreateResultFromOrder(order, isExistingOrder: false);
+    }
+
+    public async Task<GetOrderResult> GetOrderAsync(string orderNumber, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(orderNumber);
+
+        var order = await orderRepository.GetByOrderNumberAsync(orderNumber, cancellationToken);
+        if (order is null)
+        {
+            throw new OrderNotFoundException(orderNumber);
+        }
+
+        var processedAt = order.ProcessedAt.HasValue
+            ? new DateTimeOffset(order.ProcessedAt.Value)
+            : (DateTimeOffset?)null;
+
+        return new GetOrderResult(
+            OrderNumber: order.OrderNumber,
+            UserId: order.UserId,
+            Amount: order.Amount,
+            PaymentGateway: order.PaymentGateway,
+            Status: order.Status,
+            Description: order.Description,
+            CreatedAt: new DateTimeOffset(order.CreatedAt),
+            ProcessedAt: processedAt,
+            ConfirmationNumber: order.ConfirmationNumber,
+            FailureReason: order.FailureReason);
     }
 
     private async Task<CreateOrderResult?> TryGetIdempotentResultAsync(
@@ -58,13 +85,13 @@ public class OrderAppService(
         if (!existingOrder.IsEquivalentTo(
                 command.UserId,
                 command.Amount,
-                (int)command.PaymentGatewayType,
+                command.PaymentGatewayType,
                 command.Description))
         {
             throw new OrderConflictException(command.OrderNumber);
         }
 
-        return CreateResultFromOrder(existingOrder, isIdempotentReplay: true);
+        return CreateResultFromOrder(existingOrder, isExistingOrder: true);
     }
 
     private async Task<Order> CreatePendingOrderAsync(
@@ -76,7 +103,7 @@ public class OrderAppService(
             userId: command.UserId,
             amount: command.Amount,
             description: command.Description,
-            paymentGatewayId: (int)command.PaymentGatewayType);
+            paymentGateway: command.PaymentGatewayType);
 
         await orderRepository.AddAsync(order, cancellationToken);
         await orderRepository.SaveChangesAsync(cancellationToken);
@@ -109,16 +136,15 @@ public class OrderAppService(
         await orderRepository.SaveChangesAsync(cancellationToken);
     }
 
-    private static CreateOrderResult CreateResultFromOrder(Order order, bool isIdempotentReplay)
+    private static CreateOrderResult CreateResultFromOrder(Order order, bool isExistingOrder)
     {
-        var timestamp = DateTime.SpecifyKind(order.ProcessedAt ?? order.CreatedAt, DateTimeKind.Utc);
         return new CreateOrderResult(
             OrderNumber: order.OrderNumber,
             Amount: order.Amount,
-            Timestamp: new DateTimeOffset(timestamp),
+            Timestamp: new DateTimeOffset(order.ProcessedAt ?? order.CreatedAt),
             Status: order.Status,
             ConfirmationNumber: order.ConfirmationNumber,
             FailureReason: order.FailureReason,
-            IsIdempotentReplay: isIdempotentReplay);
+            IsExistingOrder: isExistingOrder);
     }
 }

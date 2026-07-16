@@ -4,5 +4,6 @@ namespace Billing.Application.Interfaces;
 
 public interface IOrderAppService
 {
-    Task<CreateOrderResult> ProcessOrder(CreateOrderCommand command, CancellationToken cancellationToken);
+    Task<CreateOrderResult> ProcessOrderAsync(CreateOrderCommand command, CancellationToken cancellationToken);
+    Task<GetOrderResult> GetOrderAsync(string orderNumber, CancellationToken cancellationToken);
 }

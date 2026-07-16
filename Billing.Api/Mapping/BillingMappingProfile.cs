@@ -19,5 +19,6 @@ public sealed class BillingMappingProfile : Profile
 
         // Application result -> API response (1:1 member match).
         CreateMap<CreateOrderResult, PaymentReceiptResponse>();
+        CreateMap<GetOrderResult, OrderResponse>();
     }
 }

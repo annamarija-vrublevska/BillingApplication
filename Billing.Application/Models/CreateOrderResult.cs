@@ -9,4 +9,4 @@ public sealed record CreateOrderResult(
     OrderStatus Status,
     string? ConfirmationNumber,
     string? FailureReason,
-    bool IsIdempotentReplay);
+    bool IsExistingOrder);

@@ -27,7 +27,7 @@ public sealed class ApplicationExceptionHandler(
                 StatusCodes.Status422UnprocessableEntity,
                 "/problems/payment-failed",
                 "Payment failed"),
-            KeyNotFoundException => (
+            OrderNotFoundException => (
                 StatusCodes.Status404NotFound,
                 "/problems/order-not-found",
                 "Resource not found"),

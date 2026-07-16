@@ -6,6 +6,7 @@ using Billing.Api.Models;
 using Billing.Application.Interfaces;
 using Billing.Application.Models;
 using Billing.IntegrationTests.Infrastructure;
+using Billing.Domain.Models;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -28,8 +29,9 @@ public sealed class SubmitOrderIntegrationTests
         var request = CreateValidOrderRequest(orderNumber: "ORD-SUCCESS-1");
         var response = await client.PostAsJsonAsync("/api/orders", request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
+        response.Headers.Location?.ToString().Should().EndWith($"/api/orders/{request.OrderNumber}");
 
         var receipt = await response.Content.ReadFromJsonAsync<PaymentReceiptResponse>(JsonOptions);
         receipt.Should().NotBeNull();
@@ -38,7 +40,7 @@ public sealed class SubmitOrderIntegrationTests
         receipt.ConfirmationNumber.Should().NotBeNullOrWhiteSpace();
         receipt.Timestamp.Should().NotBe(default);
         receipt.Status.Should().Be(Domain.Models.OrderStatus.Paid);
-        receipt.IsIdempotentReplay.Should().BeFalse();
+        receipt.IsExistingOrder.Should().BeFalse();
     }
 
     [Fact]
@@ -108,7 +110,7 @@ public sealed class SubmitOrderIntegrationTests
         var firstResponse = await client.PostAsJsonAsync("/api/orders", request);
         var secondResponse = await client.PostAsJsonAsync("/api/orders", request);
 
-        firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var first = await firstResponse.Content.ReadFromJsonAsync<PaymentReceiptResponse>(JsonOptions);
@@ -132,7 +134,7 @@ public sealed class SubmitOrderIntegrationTests
         var conflictingRequest = CreateValidOrderRequest(orderNumber: "ORD-CONFLICT-2", amount: 200m);
 
         var firstResponse = await client.PostAsJsonAsync("/api/orders", firstRequest);
-        firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var secondResponse = await client.PostAsJsonAsync("/api/orders", conflictingRequest);
         using var json = await ReadJsonAsync(secondResponse);
@@ -167,8 +169,11 @@ public sealed class SubmitOrderIntegrationTests
         (await factory.CountOrdersAsync(request.OrderNumber)).Should().Be(1);
 
         var statuses = new[] { first.StatusCode, second.StatusCode };
-        statuses.Should().OnlyContain(code => code == HttpStatusCode.OK || code == HttpStatusCode.Conflict);
-        statuses.Should().Contain(HttpStatusCode.OK);
+        statuses.Should().OnlyContain(code =>
+            code == HttpStatusCode.Created
+            || code == HttpStatusCode.OK
+            || code == HttpStatusCode.Conflict);
+        statuses.Should().Contain(code => code == HttpStatusCode.Created || code == HttpStatusCode.OK);
     }
 
     [Fact]
@@ -192,7 +197,7 @@ public sealed class SubmitOrderIntegrationTests
         var second = await secondTask;
 
         var responses = new[] { first, second };
-        responses.Count(r => r.StatusCode == HttpStatusCode.OK).Should().Be(1);
+        responses.Count(r => r.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK).Should().Be(1);
         responses.Count(r => r.StatusCode == HttpStatusCode.Conflict).Should().Be(1);
         factory.GatewayController.GetCallCount(PaymentGatewayType.MockSuccess).Should().Be(1);
         (await factory.CountOrdersAsync(winningCandidate.OrderNumber)).Should().Be(1);
@@ -224,6 +229,50 @@ public sealed class SubmitOrderIntegrationTests
         body.ToLowerInvariant().Should().NotContain("stack");
     }
 
+    [Fact]
+    public async Task GetOrder_WithExistingOrder_ReturnsOrderResponse()
+    {
+        await using var factory = new BillingApiFactory();
+        using var client = factory.CreateClient();
+
+        var request = CreateValidOrderRequest(orderNumber: "ORD-GET-1", userId: "user-get-1");
+        var createResponse = await client.PostAsJsonAsync("/api/orders", request);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var getResponse = await client.GetAsync($"/api/orders/{request.OrderNumber}");
+        getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        getResponse.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
+
+        var order = await getResponse.Content.ReadFromJsonAsync<OrderResponse>(JsonOptions);
+        order.Should().NotBeNull();
+        order!.OrderNumber.Should().Be(request.OrderNumber);
+        order.UserId.Should().Be(request.UserId);
+        order.Amount.Should().Be(request.Amount);
+        order.PaymentGateway.Should().Be(request.PaymentGatewayType);
+        order.Status.Should().Be(Domain.Models.OrderStatus.Paid);
+        order.ConfirmationNumber.Should().NotBeNullOrWhiteSpace();
+        order.CreatedAt.Should().NotBe(default);
+        order.ProcessedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task GetOrder_WithMissingOrder_ReturnsNotFoundProblem()
+    {
+        await using var factory = new BillingApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/orders/ORD-NOT-FOUND-1");
+        using var json = await ReadJsonAsync(response);
+
+        AssertProblem(
+            response,
+            json,
+            HttpStatusCode.NotFound,
+            "/problems/order-not-found",
+            "Resource not found",
+            "/api/orders/ORD-NOT-FOUND-1");
+    }
+
     private static CreateOrderRequest CreateValidOrderRequest(
         string? orderNumber = null,
         string? userId = null,
@@ -250,7 +299,8 @@ public sealed class SubmitOrderIntegrationTests
         JsonDocument json,
         HttpStatusCode expectedStatusCode,
         string expectedType,
-        string expectedTitle)
+        string expectedTitle,
+        string expectedInstance = "/api/orders")
     {
         response.StatusCode.Should().Be(expectedStatusCode);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
@@ -258,12 +308,17 @@ public sealed class SubmitOrderIntegrationTests
         json.RootElement.GetProperty("title").GetString().Should().Be(expectedTitle);
         json.RootElement.GetProperty("status").GetInt32().Should().Be((int)expectedStatusCode);
         json.RootElement.GetProperty("traceId").GetString().Should().NotBeNullOrWhiteSpace();
-        json.RootElement.GetProperty("instance").GetString().Should().Be("/api/orders");
+        json.RootElement.GetProperty("instance").GetString().Should().Be(expectedInstance);
     }
 
     private sealed class ThrowingOrderAppService : IOrderAppService
     {
-        public Task<CreateOrderResult> ProcessOrder(CreateOrderCommand command, CancellationToken cancellationToken)
+        public Task<CreateOrderResult> ProcessOrderAsync(CreateOrderCommand command, CancellationToken cancellationToken)
+        {
+            throw new Exception("Unexpected test exception message with internal details.");
+        }
+
+        public Task<GetOrderResult> GetOrderAsync(string orderNumber, CancellationToken cancellationToken)
         {
             throw new Exception("Unexpected test exception message with internal details.");
         }
