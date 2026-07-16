@@ -9,18 +9,19 @@ public sealed class CreateOrderCommandValidator : AbstractValidator<CreateOrderC
     {
         RuleFor(x => x.OrderNumber)
             .NotEmpty()
-            .WithMessage("Order number is required.");
+            .MaximumLength(64);
 
         RuleFor(x => x.UserId)
             .NotEmpty()
-            .WithMessage("User id is required.");
+            .MaximumLength(128);
 
         RuleFor(x => x.Amount)
-            .GreaterThan(0)
-            .WithMessage("Amount must be greater than zero.");
+            .GreaterThan(0);
 
         RuleFor(x => x.PaymentGatewayType)
-            .IsInEnum()
-            .WithMessage("Payment gateway type is invalid.");
+            .IsInEnum();
+
+        RuleFor(x => x.Description)
+            .MaximumLength(500);
     }
 }

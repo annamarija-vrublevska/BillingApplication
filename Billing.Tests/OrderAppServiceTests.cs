@@ -7,13 +7,64 @@ using Billing.Application.Services;
 using Billing.Application.Validation;
 using Billing.Domain.Models;
 using FluentAssertions;
-using FluentValidation.TestHelper;
+using FluentValidation;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Billing.Tests;
 
 public sealed class OrderAppServiceTests
 {
+    [Fact]
+    public async Task ProcessOrder_WhenOrderNumberIsEmpty_ThrowsValidationException()
+    {
+        var repository = new FakeOrderRepository();
+        var gateway = new SpyPaymentGateway(PaymentGatewayType.MockSuccess);
+        var service = CreateService(repository, gateway);
+        var command = CreateValidCommand() with { OrderNumber = string.Empty };
+
+        Func<Task> act = () => service.ProcessOrder(command, CancellationToken.None);
+
+        var exceptionAssertion = await act.Should().ThrowAsync<ValidationException>();
+        exceptionAssertion.Which.Errors.Select(error => error.PropertyName)
+            .Should().Contain(nameof(CreateOrderCommand.OrderNumber));
+        gateway.CallCount.Should().Be(0);
+        repository.AddCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ProcessOrder_WhenAmountIsNotPositive_ThrowsValidationException()
+    {
+        var repository = new FakeOrderRepository();
+        var gateway = new SpyPaymentGateway(PaymentGatewayType.MockSuccess);
+        var service = CreateService(repository, gateway);
+        var command = CreateValidCommand() with { Amount = 0 };
+
+        Func<Task> act = () => service.ProcessOrder(command, CancellationToken.None);
+
+        var exceptionAssertion = await act.Should().ThrowAsync<ValidationException>();
+        exceptionAssertion.Which.Errors.Select(error => error.PropertyName)
+            .Should().Contain(nameof(CreateOrderCommand.Amount));
+        gateway.CallCount.Should().Be(0);
+        repository.AddCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ProcessOrder_WhenPaymentGatewayTypeIsInvalid_ThrowsValidationException()
+    {
+        var repository = new FakeOrderRepository();
+        var gateway = new SpyPaymentGateway(PaymentGatewayType.MockSuccess);
+        var service = CreateService(repository, gateway);
+        var command = CreateValidCommand() with { PaymentGatewayType = (PaymentGatewayType)999 };
+
+        Func<Task> act = () => service.ProcessOrder(command, CancellationToken.None);
+
+        var exceptionAssertion = await act.Should().ThrowAsync<ValidationException>();
+        exceptionAssertion.Which.Errors.Select(error => error.PropertyName)
+            .Should().Contain(nameof(CreateOrderCommand.PaymentGatewayType));
+        gateway.CallCount.Should().Be(0);
+        repository.AddCalls.Should().Be(0);
+    }
+
     [Fact]
     public async Task ProcessOrder_WhenEquivalentOrderExists_ReturnsStoredReceiptWithoutGatewayCall()
     {
@@ -35,9 +86,6 @@ public sealed class OrderAppServiceTests
             Amount: 125.50m,
             PaymentGatewayType: PaymentGatewayType.MockSuccess,
             Description: "Test");
-        var validationResult = new CreateOrderCommandValidator().TestValidate(command);
-        validationResult.ShouldNotHaveAnyValidationErrors();
-
         var result = await service.ProcessOrder(command, CancellationToken.None);
 
         result.OrderNumber.Should().Be("ORD-100");
@@ -68,9 +116,6 @@ public sealed class OrderAppServiceTests
             Amount: 300m,
             PaymentGatewayType: PaymentGatewayType.MockSuccess,
             Description: "Original");
-        var validationResult = new CreateOrderCommandValidator().TestValidate(command);
-        validationResult.ShouldNotHaveAnyValidationErrors();
-
         Func<Task> act = () => service.ProcessOrder(command, CancellationToken.None);
         var exceptionAssertion = await act.Should().ThrowAsync<OrderConflictException>();
 
@@ -91,6 +136,16 @@ public sealed class OrderAppServiceTests
             orderRepository: repository,
             mapper: mapperConfig.CreateMapper(),
             createOrderCommandValidator: new CreateOrderCommandValidator());
+    }
+
+    private static CreateOrderCommand CreateValidCommand()
+    {
+        return new CreateOrderCommand(
+            OrderNumber: "ORD-VALID",
+            UserId: "user-1",
+            Amount: 100m,
+            PaymentGatewayType: PaymentGatewayType.MockSuccess,
+            Description: "Test");
     }
 
     private sealed class FakeOrderRepository(params Order[] seededOrders) : IOrderRepository

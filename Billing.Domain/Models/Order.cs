@@ -13,6 +13,11 @@ public sealed class Order
         string? description,
         int paymentGatewayId)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(orderNumber);
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(amount);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(paymentGatewayId);
+
         Id = Guid.NewGuid();
         OrderNumber = orderNumber;
         UserId = userId;

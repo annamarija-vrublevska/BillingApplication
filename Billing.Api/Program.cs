@@ -52,8 +52,8 @@ builder.Services.AddAutoMapper(cfg =>
 builder.Services.AddScoped<IPaymentGateway, MockSuccessPaymentGateway>();
 builder.Services.AddScoped<IPaymentGateway, MockFailurePaymentGateway>();
 builder.Services.AddScoped<IOrderAppService, OrderAppService>();
-builder.Services.AddScoped<IValidator<CreateOrderCommand>, CreateOrderCommandValidator>();
 builder.Services.AddScoped<IPaymentGatewayResolver, PaymentGatewayResolver>();
+builder.Services.AddScoped<IValidator<CreateOrderCommand>, CreateOrderCommandValidator>();
 
 var app = builder.Build();
 
