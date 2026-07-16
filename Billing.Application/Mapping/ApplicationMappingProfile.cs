@@ -19,7 +19,16 @@ public sealed class ApplicationMappingProfile : Profile
                 nameof(PaymentRequest.Description),
                 opt => opt.MapFrom(src => src.Description ?? string.Empty));
 
-        // Application payment result -> Application order result (1:1 member match).
-        CreateMap<PaymentResult, CreateOrderResult>();
+        // Application payment result -> Application order result.
+        CreateMap<PaymentResult, CreateOrderResult>()
+            .ForCtorParam(
+                nameof(CreateOrderResult.Status),
+                opt => opt.MapFrom(_ => Billing.Domain.Models.OrderStatus.Paid))
+            .ForCtorParam(
+                nameof(CreateOrderResult.FailureReason),
+                opt => opt.MapFrom(_ => (string?)null))
+            .ForCtorParam(
+                nameof(CreateOrderResult.IsIdempotentReplay),
+                opt => opt.MapFrom(_ => false));
     }
 }

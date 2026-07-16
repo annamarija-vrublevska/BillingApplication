@@ -15,6 +15,26 @@ namespace Billing.Tests;
 public sealed class OrderAppServiceTests
 {
     [Fact]
+    public async Task ProcessOrder_WhenNewOrderIsProcessed_ReturnsPaidResultWithReplayFalse()
+    {
+        var repository = new FakeOrderRepository();
+        var gateway = new SpyPaymentGateway(PaymentGatewayType.MockSuccess);
+        var service = CreateService(repository, gateway);
+        var command = CreateValidCommand();
+
+        var result = await service.ProcessOrder(command, CancellationToken.None);
+
+        result.OrderNumber.Should().Be(command.OrderNumber);
+        result.Amount.Should().Be(command.Amount);
+        result.Status.Should().Be(OrderStatus.Paid);
+        result.ConfirmationNumber.Should().Be("CONF-MOCK");
+        result.FailureReason.Should().BeNull();
+        result.IsIdempotentReplay.Should().BeFalse();
+        gateway.CallCount.Should().Be(1);
+        repository.AddCalls.Should().Be(1);
+    }
+
+    [Fact]
     public async Task ProcessOrder_WhenOrderNumberIsEmpty_ThrowsValidationException()
     {
         var repository = new FakeOrderRepository();
@@ -91,6 +111,43 @@ public sealed class OrderAppServiceTests
         result.OrderNumber.Should().Be("ORD-100");
         result.Amount.Should().Be(125.50m);
         result.ConfirmationNumber.Should().Be("CONF-100");
+        result.Status.Should().Be(OrderStatus.Paid);
+        result.FailureReason.Should().BeNull();
+        result.IsIdempotentReplay.Should().BeTrue();
+        gateway.CallCount.Should().Be(0);
+        repository.AddCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ProcessOrder_WhenEquivalentFailedOrderExists_ReturnsStoredFailedResultWithoutGatewayCall()
+    {
+        var existingOrder = new Order(
+            orderNumber: "ORD-FAILED-1",
+            userId: "user-1",
+            amount: 44.10m,
+            description: "Retry me",
+            paymentGatewayId: (int)PaymentGatewayType.MockFailure);
+        existingOrder.MarkAsFailed("Gateway timeout");
+
+        var repository = new FakeOrderRepository(existingOrder);
+        var gateway = new SpyPaymentGateway(PaymentGatewayType.MockFailure);
+        var service = CreateService(repository, gateway);
+
+        var command = new CreateOrderCommand(
+            OrderNumber: "ORD-FAILED-1",
+            UserId: "user-1",
+            Amount: 44.10m,
+            PaymentGatewayType: PaymentGatewayType.MockFailure,
+            Description: "Retry me");
+
+        var result = await service.ProcessOrder(command, CancellationToken.None);
+
+        result.OrderNumber.Should().Be("ORD-FAILED-1");
+        result.Amount.Should().Be(44.10m);
+        result.Status.Should().Be(OrderStatus.Failed);
+        result.ConfirmationNumber.Should().BeNull();
+        result.FailureReason.Should().Be("Gateway timeout");
+        result.IsIdempotentReplay.Should().BeTrue();
         gateway.CallCount.Should().Be(0);
         repository.AddCalls.Should().Be(0);
     }
