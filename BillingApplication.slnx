@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/tests/">
     <Project Path="Billing.Tests/Billing.Tests.csproj" />
+    <Project Path="Billing.IntegrationTests/Billing.IntegrationTests.csproj" />
   </Folder>
   <Project Path="Billing.Api/Billing.Api.csproj" />
   <Project Path="Billing.Application/Billing.Application.csproj" />
