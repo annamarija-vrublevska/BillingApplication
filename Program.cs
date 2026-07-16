@@ -1,4 +1,5 @@
 using System.Reflection;
+using Billing.Api.Interfaces;
 using Billing.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,7 +20,10 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddProblemDetails();
 
-builder.Services.AddSingleton<IPaymentGateway, PaymentGatewayMock>();
+builder.Services.AddScoped<IPaymentGateway, SwedbankPaymentGatewayMock>();
+builder.Services.AddScoped<IPaymentGateway, SebPaymentGatewayMock>();
+builder.Services.AddScoped<IPaymentGatewayResolver, PaymentGatewayResolver>();
+builder.Services.AddTransient<IPaymentGatewayResolver, PaymentGatewayResolver>();
 
 builder.Services.AddControllers();
 

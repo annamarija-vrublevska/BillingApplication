@@ -1,4 +1,5 @@
-﻿using Billing.Api.Models;
+﻿using Billing.Api.Interfaces;
+using Billing.Api.Models;
 using Billing.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -6,19 +7,12 @@ namespace Billing.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class OrdersController : Controller
+public class OrdersController(IPaymentGatewayResolver paymentGatewayResolver) : Controller
 {
-    private readonly IPaymentGateway _paymentGateway;
-
-    public OrdersController(IPaymentGateway paymentGateway)
-    {
-        _paymentGateway = paymentGateway;
-    }
-
     [HttpPost]
     [ProducesResponseType(typeof(PaymentReceiptResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public ActionResult<PaymentReceiptResponse> Submit([FromBody] CreateOrderRequest request)
+    public async Task<ActionResult<PaymentReceiptResponse>> Submit([FromBody] CreateOrderRequest request, CancellationToken cancellationToken)
     {
         if (request is null)
         {
@@ -50,7 +44,8 @@ public class OrdersController : Controller
             return ValidationProblem(ModelState);
         }
 
-        var receipt = _paymentGateway.ProcessPayment(request);
+        var gateway = paymentGatewayResolver.Resolve(request.PaymentGatewayId);
+        var receipt = await gateway.ProcessPaymentAsync(request, cancellationToken);
 
         return Ok(receipt);
     }
