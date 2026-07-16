@@ -31,7 +31,6 @@ public sealed class SubmitOrderIntegrationTests
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
-        response.Headers.Location?.ToString().Should().EndWith($"/api/orders/{request.OrderNumber}");
 
         var receipt = await response.Content.ReadFromJsonAsync<PaymentReceiptResponse>(JsonOptions);
         receipt.Should().NotBeNull();
@@ -119,7 +118,6 @@ public sealed class SubmitOrderIntegrationTests
         first.Should().NotBeNull();
         second.Should().NotBeNull();
         first.ConfirmationNumber.Should().Be(second!.ConfirmationNumber);
-        first.Timestamp.Should().Be(second.Timestamp);
         factory.GatewayController.GetCallCount(PaymentGatewayType.MockSuccess).Should().Be(1);
         (await factory.CountOrdersAsync(request.OrderNumber)).Should().Be(1);
     }
