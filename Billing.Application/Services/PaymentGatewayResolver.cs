@@ -1,6 +1,6 @@
-﻿using Billing.Api.Interfaces;
+﻿using Billing.Application.Interfaces;
 
-namespace Billing.Api.Services;
+namespace Billing.Application.Services;
 
 public sealed class PaymentGatewayResolver : IPaymentGatewayResolver
 {

@@ -1,6 +1,9 @@
 <Solution>
   <Folder Name="/tests/">
-    <Project Path="../Billing.Tests/Billing.Tests.csproj" />
+    <Project Path="Billing.Tests/Billing.Tests.csproj" />
   </Folder>
   <Project Path="Billing.Api.csproj" />
+  <Project Path="Billing.Application/Billing.Application.csproj" />
+  <Project Path="Billing.Domain/Billing.Domain.csproj" />
+  <Project Path="Billing.Infrastructure/Billing.Infrastructure.csproj" />
 </Solution>

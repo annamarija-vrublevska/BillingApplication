@@ -1,6 +1,8 @@
+using Billing.Api.Mapping;
+using Billing.Application.Interfaces;
+using Billing.Application.Services;
+using Billing.Infrastructure.PaymentGateways;
 using System.Reflection;
-using Billing.Api.Interfaces;
-using Billing.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,10 +22,16 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddProblemDetails();
 
+builder.Services.AddAutoMapper(cfg =>
+{
+    cfg.AddProfile<BillingMappingProfile>();
+    cfg.AddProfile<Billing.Application.Mapping.ApplicationMappingProfile>();
+});
+
 builder.Services.AddScoped<IPaymentGateway, SwedbankPaymentGatewayMock>();
 builder.Services.AddScoped<IPaymentGateway, SebPaymentGatewayMock>();
+builder.Services.AddScoped<IOrderAppService, OrderAppService>();
 builder.Services.AddScoped<IPaymentGatewayResolver, PaymentGatewayResolver>();
-builder.Services.AddTransient<IPaymentGatewayResolver, PaymentGatewayResolver>();
 
 builder.Services.AddControllers();
 
