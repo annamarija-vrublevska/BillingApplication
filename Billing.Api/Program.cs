@@ -4,6 +4,7 @@ using Billing.Application.Interfaces;
 using Billing.Application.Models;
 using Billing.Application.Services;
 using Billing.Application.Validation;
+using Billing.Infrastructure;
 using Billing.Infrastructure.PaymentGateways;
 using FluentValidation;
 using System.Reflection;
@@ -38,6 +39,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddAutoMapper(cfg =>
 {

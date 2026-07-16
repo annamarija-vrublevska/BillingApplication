@@ -1,9 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Billing.Domain.Models;
 
 namespace Billing.Application.Interfaces;
 
-internal interface IOrderRepository
+public interface IOrderRepository
 {
+    Task<Order> GetByOrderNumberAsync(
+        string orderNumber,
+        CancellationToken cancellationToken);
+
+    Task AddAsync(
+        Order order,
+        CancellationToken cancellationToken);
+
+    Task SaveChangesAsync(
+        CancellationToken cancellationToken);
 }
