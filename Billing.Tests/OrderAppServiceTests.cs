@@ -192,7 +192,8 @@ public sealed class OrderAppServiceTests
             paymentGatewayResolver: resolver,
             orderRepository: repository,
             mapper: mapperConfig.CreateMapper(),
-            createOrderCommandValidator: new CreateOrderCommandValidator());
+            createOrderCommandValidator: new CreateOrderCommandValidator(),
+            logger: NullLogger<OrderAppService>.Instance);
     }
 
     private static CreateOrderCommand CreateValidCommand()

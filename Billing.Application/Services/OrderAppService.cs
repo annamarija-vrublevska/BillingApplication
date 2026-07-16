@@ -4,6 +4,7 @@ using Billing.Application.Interfaces;
 using Billing.Application.Models;
 using Billing.Domain.Models;
 using FluentValidation;
+using Microsoft.Extensions.Logging;
 
 namespace Billing.Application.Services;
 
@@ -11,7 +12,8 @@ public class OrderAppService(
     IPaymentGatewayResolver paymentGatewayResolver,
     IOrderRepository orderRepository,
     IMapper mapper,
-    IValidator<CreateOrderCommand> createOrderCommandValidator) : IOrderAppService
+    IValidator<CreateOrderCommand> createOrderCommandValidator,
+    ILogger<OrderAppService> logger) : IOrderAppService
 {
     public async Task<CreateOrderResult> ProcessOrderAsync(CreateOrderCommand command, CancellationToken cancellationToken)
     {
@@ -24,8 +26,25 @@ public class OrderAppService(
         }
 
         var order = await CreatePendingOrderAsync(command, cancellationToken);
+        logger.LogInformation(
+            "Order {OrderNumber} created for processing using gateway {Gateway}.",
+            order.OrderNumber,
+            order.PaymentGateway);
 
-        var gateway = paymentGatewayResolver.Resolve(command.PaymentGatewayType);
+        IPaymentGateway gateway;
+        try
+        {
+            gateway = paymentGatewayResolver.Resolve(command.PaymentGatewayType);
+        }
+        catch (PaymentGatewayNotFoundException)
+        {
+            logger.LogWarning(
+                "Payment gateway {Gateway} is not available for order {OrderNumber}.",
+                command.PaymentGatewayType,
+                command.OrderNumber);
+            throw;
+        }
+
         var paymentRequest = mapper.Map<PaymentRequest>(command);
 
         await MarkOrderAsProcessingAsync(order, cancellationToken);
@@ -38,10 +57,18 @@ public class OrderAppService(
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             await MarkOrderAsFailedAsync(order, ex.Message, cancellationToken);
+            logger.LogWarning(
+                "Payment failed for order {OrderNumber} using gateway {Gateway}.",
+                order.OrderNumber,
+                order.PaymentGateway);
             throw new PaymentFailedException(order.OrderNumber, ex);
         }
 
         await MarkOrderAsPaidAsync(order, paymentResult.ConfirmationNumber, cancellationToken);
+        logger.LogInformation(
+            "Payment completed for order {OrderNumber} using gateway {Gateway}.",
+            order.OrderNumber,
+            order.PaymentGateway);
         return CreateResultFromOrder(order, isExistingOrder: false);
     }
 
@@ -88,9 +115,15 @@ public class OrderAppService(
                 command.PaymentGatewayType,
                 command.Description))
         {
+            logger.LogWarning(
+                "Order conflict detected for order {OrderNumber}: same idempotency key with different payload.",
+                command.OrderNumber);
             throw new OrderConflictException(command.OrderNumber);
         }
 
+        logger.LogInformation(
+            "Idempotent replay returned existing receipt for order {OrderNumber}.",
+            command.OrderNumber);
         return CreateResultFromOrder(existingOrder, isExistingOrder: true);
     }
 

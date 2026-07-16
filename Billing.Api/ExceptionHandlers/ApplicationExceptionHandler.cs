@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 namespace Billing.Api.ExceptionHandlers;
 
 public sealed class ApplicationExceptionHandler(
-    ILogger<ApplicationExceptionHandler> logger,
     IProblemDetailsService problemDetailsService) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(
@@ -38,11 +37,6 @@ public sealed class ApplicationExceptionHandler(
         {
             return false;
         }
-
-        logger.LogInformation(
-            "Handled application exception {ExceptionType} with status {StatusCode}.",
-            exception.GetType().Name,
-            status);
 
         var problemDetails = new ProblemDetails
         {
