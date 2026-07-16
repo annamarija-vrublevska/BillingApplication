@@ -11,8 +11,10 @@ public sealed class ApplicationMappingProfile : Profile
     public ApplicationMappingProfile()
     {
         // Application command -> Application payment request.
-        // PaymentGatewayId has no counterpart on PaymentRequest and is not mapped.
         CreateMap<CreateOrderCommand, PaymentRequest>()
+            .ForCtorParam(
+                nameof(PaymentRequest.PaymentGatewayType),
+                opt => opt.MapFrom(src => src.PaymentGatewayType))
             .ForCtorParam(
                 nameof(PaymentRequest.Description),
                 opt => opt.MapFrom(src => src.Description ?? string.Empty));

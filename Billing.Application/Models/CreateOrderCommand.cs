@@ -4,5 +4,5 @@ public sealed record CreateOrderCommand(
     string OrderNumber,
     string UserId,
     decimal Amount,
-    string PaymentGatewayId,
+    PaymentGatewayType PaymentGatewayType,
     string? Description);

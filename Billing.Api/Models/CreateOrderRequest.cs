@@ -1,8 +1,11 @@
-﻿namespace Billing.Api.Models;
+﻿using Billing.Application.Models;
+using System.Text.Json.Serialization;
+
+namespace Billing.Api.Models;
 
 public sealed record CreateOrderRequest(
     string OrderNumber,
     string UserId,
     decimal Amount,
-    string PaymentGatewayId,
+    [property: JsonPropertyName("paymentGateway")] PaymentGatewayType PaymentGatewayType,
     string? Description);

@@ -3,9 +3,9 @@ using Billing.Application.Models;
 
 namespace Billing.Infrastructure.PaymentGateways;
 
-public sealed class SebPaymentGatewayMock : IPaymentGateway
+public sealed class MockFailurePaymentGateway : IPaymentGateway
 {
-    public string GatewayId => "SebPaymentGateway";
+    public PaymentGatewayType GatewayType => PaymentGatewayType.MockFailure;
     private static readonly TimeSpan ProcessingDelay = TimeSpan.FromSeconds(2);
 
     public async Task<PaymentResult> ProcessPaymentAsync(PaymentRequest request,

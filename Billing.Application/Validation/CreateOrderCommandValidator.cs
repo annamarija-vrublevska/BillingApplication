@@ -19,8 +19,8 @@ public sealed class CreateOrderCommandValidator : AbstractValidator<CreateOrderC
             .GreaterThan(0)
             .WithMessage("Amount must be greater than zero.");
 
-        RuleFor(x => x.PaymentGatewayId)
-            .NotEmpty()
-            .WithMessage("Payment gateway id is required.");
+        RuleFor(x => x.PaymentGatewayType)
+            .IsInEnum()
+            .WithMessage("Payment gateway type is invalid.");
     }
 }

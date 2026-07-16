@@ -1,8 +1,7 @@
 using AutoMapper;
+using Billing.Api.Models;
 using Billing.Application.Interfaces;
 using Billing.Application.Models;
-using Billing.Api.Models;
-using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Billing.Api.Controllers;

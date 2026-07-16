@@ -5,7 +5,7 @@ namespace Billing.Application.Interfaces;
 
 public interface IPaymentGateway
 {
-    string GatewayId { get; }
+    PaymentGatewayType GatewayType { get; }
     Task<PaymentResult> ProcessPaymentAsync(PaymentRequest request,
         CancellationToken cancellationToken);
 }

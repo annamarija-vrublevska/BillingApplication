@@ -14,7 +14,7 @@ public class OrderAppService(
     {
         await createOrderCommandValidator.ValidateAndThrowAsync(command, cancellationToken);
 
-        var gateway = paymentGatewayResolver.Resolve(command.PaymentGatewayId);
+        var gateway = paymentGatewayResolver.Resolve(command.PaymentGatewayType);
         var paymentRequest = mapper.Map<PaymentRequest>(command);
         var paymentResult = await gateway.ProcessPaymentAsync(paymentRequest, cancellationToken);
         return mapper.Map<CreateOrderResult>(paymentResult);

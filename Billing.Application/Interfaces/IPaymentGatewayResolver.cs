@@ -1,6 +1,8 @@
-﻿namespace Billing.Application.Interfaces;
+﻿using Billing.Application.Models;
+
+namespace Billing.Application.Interfaces;
 
 public interface IPaymentGatewayResolver
 {
-    IPaymentGateway Resolve(string gatewayName);
+    IPaymentGateway Resolve(PaymentGatewayType gatewayType);
 }
