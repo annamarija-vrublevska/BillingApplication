@@ -30,18 +30,19 @@ public class OrderAppService(
 
         await MarkOrderAsProcessingAsync(order, cancellationToken);
 
+        PaymentResult paymentResult;
         try
         {
-            var paymentResult = await gateway.ProcessPaymentAsync(paymentRequest, cancellationToken);
-            await MarkOrderAsPaidAsync(order, paymentResult.ConfirmationNumber, cancellationToken);
-
-            return CreateResultFromOrder(order, isIdempotentReplay: false);
+            paymentResult = await gateway.ProcessPaymentAsync(paymentRequest, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             await MarkOrderAsFailedAsync(order, ex.Message, cancellationToken);
-            throw;
+            throw new PaymentFailedException(order.OrderNumber, ex);
         }
+
+        await MarkOrderAsPaidAsync(order, paymentResult.ConfirmationNumber, cancellationToken);
+        return CreateResultFromOrder(order, isIdempotentReplay: false);
     }
 
     private async Task<CreateOrderResult?> TryGetIdempotentResultAsync(

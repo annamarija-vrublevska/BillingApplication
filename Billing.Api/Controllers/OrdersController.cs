@@ -12,7 +12,10 @@ public class OrdersController(IOrderAppService orderAppService, IMapper mapper) 
 {
     [HttpPost]
     [ProducesResponseType(typeof(PaymentReceiptResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<PaymentReceiptResponse>> Submit([FromBody] CreateOrderRequest request, CancellationToken cancellationToken)
     {
         var command = mapper.Map<CreateOrderCommand>(request);

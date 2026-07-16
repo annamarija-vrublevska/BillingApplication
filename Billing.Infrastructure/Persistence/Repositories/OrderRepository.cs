@@ -1,5 +1,7 @@
 using Billing.Application.Interfaces;
+using Billing.Application.Exceptions;
 using Billing.Domain.Models;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace Billing.Infrastructure.Persistence.Repositories;
@@ -27,6 +29,34 @@ public sealed class OrderRepository(BillingDbContext dbContext) : IOrderReposito
     public Task SaveChangesAsync(
         CancellationToken cancellationToken)
     {
-        return dbContext.SaveChangesAsync(cancellationToken);
+        return SaveChangesInternalAsync(cancellationToken);
+    }
+
+    private async Task SaveChangesInternalAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (IsUniqueOrderNumberViolation(exception))
+        {
+            var conflictingOrderNumber = exception.Entries
+                .Select(entry => entry.Entity)
+                .OfType<Order>()
+                .Select(order => order.OrderNumber)
+                .FirstOrDefault() ?? string.Empty;
+
+            throw new OrderConflictException(conflictingOrderNumber);
+        }
+    }
+
+    private static bool IsUniqueOrderNumberViolation(DbUpdateException exception)
+    {
+        if (exception.InnerException is not SqliteException sqliteException)
+        {
+            return false;
+        }
+
+        return sqliteException is { SqliteErrorCode: 19, SqliteExtendedErrorCode: 2067 };
     }
 }

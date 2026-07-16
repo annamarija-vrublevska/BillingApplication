@@ -4,7 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace Billing.Api.ExceptionHandlers;
 
 public sealed class GlobalExceptionHandler(
-    ILogger<GlobalExceptionHandler> logger)
+    ILogger<GlobalExceptionHandler> logger,
+    IProblemDetailsService problemDetailsService)
     : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(
@@ -14,21 +15,38 @@ public sealed class GlobalExceptionHandler(
     {
         logger.LogError(
             exception,
-            "Unhandled exception while processing request.");
+            "Unhandled exception while processing request for {Method} {Path}.",
+            httpContext.Request.Method,
+            httpContext.Request.Path);
 
         var problemDetails = new ProblemDetails
         {
-            Title = "An unexpected error occurred.",
-            Status = StatusCodes.Status500InternalServerError
+            Type = "/problems/internal-server-error",
+            Title = "Internal server error",
+            Status = StatusCodes.Status500InternalServerError,
+            Detail = "An unexpected error occurred while processing the request.",
+            Instance = httpContext.Request.Path
         };
 
+        AddTraceId(problemDetails, httpContext.TraceIdentifier);
         httpContext.Response.StatusCode =
             StatusCodes.Status500InternalServerError;
 
-        await httpContext.Response.WriteAsJsonAsync(
-            problemDetails,
-            cancellationToken);
+        await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+        {
+            HttpContext = httpContext,
+            ProblemDetails = problemDetails,
+            Exception = exception
+        });
 
         return true;
+    }
+
+    private static void AddTraceId(ProblemDetails problemDetails, string traceIdentifier)
+    {
+        if (!problemDetails.Extensions.ContainsKey("traceId"))
+        {
+            problemDetails.Extensions["traceId"] = traceIdentifier;
+        }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Billing.Application.Interfaces;
 using Billing.Application.Models;
+using Billing.Application.Exceptions;
 
 namespace Billing.Application.Services;
 
@@ -31,6 +32,6 @@ public sealed class PaymentGatewayResolver : IPaymentGatewayResolver
             return gateway;
         }
 
-        throw new ArgumentException($"Payment gateway '{gatewayType}' not found.", nameof(gatewayType));
+        throw new PaymentGatewayNotFoundException(gatewayType);
     }
 }

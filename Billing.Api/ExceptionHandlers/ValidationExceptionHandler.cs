@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Billing.Api.ExceptionHandlers;
 
-public sealed class ValidationExceptionHandler : IExceptionHandler
+public sealed class ValidationExceptionHandler(IProblemDetailsService problemDetailsService) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
@@ -25,16 +25,33 @@ public sealed class ValidationExceptionHandler : IExceptionHandler
                     .Distinct()
                     .ToArray());
 
-        httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+        var problemDetails = new ValidationProblemDetails(errors)
+        {
+            Type = "/problems/validation-error",
+            Title = "One or more validation errors occurred.",
+            Status = StatusCodes.Status400BadRequest,
+            Detail = "See the errors property for details.",
+            Instance = httpContext.Request.Path
+        };
 
-        await httpContext.Response.WriteAsJsonAsync(
-            new ValidationProblemDetails(errors)
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "One or more validation errors occurred."
-            },
-            cancellationToken);
+        AddTraceId(problemDetails, httpContext.TraceIdentifier);
+
+        httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+        {
+            HttpContext = httpContext,
+            ProblemDetails = problemDetails,
+            Exception = exception
+        });
 
         return true;
+    }
+
+    private static void AddTraceId(ProblemDetails problemDetails, string traceIdentifier)
+    {
+        if (!problemDetails.Extensions.ContainsKey("traceId"))
+        {
+            problemDetails.Extensions["traceId"] = traceIdentifier;
+        }
     }
 }
