@@ -1,4 +1,6 @@
+using Billing.Application.Interfaces;
 using Billing.Infrastructure.Persistence;
+using Billing.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +16,7 @@ public static class DependencyInjection
 
         services.AddDbContext<BillingDbContext>(options =>
             options.UseSqlite(connectionString));
+        services.AddScoped<IOrderRepository, OrderRepository>();
 
         return services;
     }
