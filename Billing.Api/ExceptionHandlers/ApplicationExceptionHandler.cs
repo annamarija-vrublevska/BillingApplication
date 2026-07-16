@@ -47,7 +47,7 @@ public sealed class ApplicationExceptionHandler(
             Instance = httpContext.Request.Path
         };
 
-        AddTraceId(problemDetails, httpContext.TraceIdentifier);
+        problemDetails.AddTraceId(httpContext.TraceIdentifier);
         httpContext.Response.StatusCode = status;
 
         return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
@@ -56,13 +56,5 @@ public sealed class ApplicationExceptionHandler(
             ProblemDetails = problemDetails,
             Exception = exception
         });
-    }
-
-    private static void AddTraceId(ProblemDetails problemDetails, string traceIdentifier)
-    {
-        if (!problemDetails.Extensions.ContainsKey("traceId"))
-        {
-            problemDetails.Extensions["traceId"] = traceIdentifier;
-        }
     }
 }

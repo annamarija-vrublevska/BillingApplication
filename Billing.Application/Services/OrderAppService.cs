@@ -31,19 +31,7 @@ public class OrderAppService(
             order.OrderNumber,
             order.PaymentGateway);
 
-        IPaymentGateway gateway;
-        try
-        {
-            gateway = paymentGatewayResolver.Resolve(command.PaymentGatewayType);
-        }
-        catch (PaymentGatewayNotFoundException)
-        {
-            logger.LogWarning(
-                "Payment gateway {Gateway} is not available for order {OrderNumber}.",
-                command.PaymentGatewayType,
-                command.OrderNumber);
-            throw;
-        }
+        var gateway = paymentGatewayResolver.Resolve(command.PaymentGatewayType);
 
         var paymentRequest = mapper.Map<PaymentRequest>(command);
 

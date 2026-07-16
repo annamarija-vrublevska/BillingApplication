@@ -8,6 +8,9 @@ namespace Billing.Infrastructure.Persistence.Repositories;
 
 public sealed class OrderRepository(BillingDbContext dbContext) : IOrderRepository
 {
+    private const int SqliteConstraintViolationCode = 19;
+    private const int SqliteUniqueConstraintViolationCode = 2067;
+
     public async Task<Order?> GetByOrderNumberAsync(
         string orderNumber,
         CancellationToken cancellationToken)
@@ -29,14 +32,9 @@ public sealed class OrderRepository(BillingDbContext dbContext) : IOrderReposito
     public Task SaveChangesAsync(
         CancellationToken cancellationToken)
     {
-        return SaveChangesInternalAsync(cancellationToken);
-    }
-
-    private async Task SaveChangesInternalAsync(CancellationToken cancellationToken)
-    {
         try
         {
-            await dbContext.SaveChangesAsync(cancellationToken);
+            return dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException exception) when (IsUniqueOrderNumberViolation(exception))
         {
@@ -57,6 +55,10 @@ public sealed class OrderRepository(BillingDbContext dbContext) : IOrderReposito
             return false;
         }
 
-        return sqliteException is { SqliteErrorCode: 19, SqliteExtendedErrorCode: 2067 };
+        return sqliteException is
+        {
+            SqliteErrorCode: SqliteConstraintViolationCode,
+            SqliteExtendedErrorCode: SqliteUniqueConstraintViolationCode
+        };
     }
 }

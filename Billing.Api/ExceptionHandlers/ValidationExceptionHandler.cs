@@ -34,7 +34,7 @@ public sealed class ValidationExceptionHandler(IProblemDetailsService problemDet
             Instance = httpContext.Request.Path
         };
 
-        AddTraceId(problemDetails, httpContext.TraceIdentifier);
+        problemDetails.AddTraceId(httpContext.TraceIdentifier);
 
         httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
         await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
@@ -45,13 +45,5 @@ public sealed class ValidationExceptionHandler(IProblemDetailsService problemDet
         });
 
         return true;
-    }
-
-    private static void AddTraceId(ProblemDetails problemDetails, string traceIdentifier)
-    {
-        if (!problemDetails.Extensions.ContainsKey("traceId"))
-        {
-            problemDetails.Extensions["traceId"] = traceIdentifier;
-        }
     }
 }
