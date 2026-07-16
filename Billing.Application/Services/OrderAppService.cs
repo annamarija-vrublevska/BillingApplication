@@ -25,13 +25,12 @@ public sealed class OrderAppService(
             return idempotentResult;
         }
 
+        var gateway = paymentGatewayResolver.Resolve(command.PaymentGatewayType);
         var order = await CreatePendingOrderAsync(command, cancellationToken);
         logger.LogInformation(
             "Order {OrderNumber} created for processing using gateway {Gateway}.",
             order.OrderNumber,
             order.PaymentGateway);
-
-        var gateway = paymentGatewayResolver.Resolve(command.PaymentGatewayType);
 
         var paymentRequest = mapper.Map<PaymentRequest>(command);
 

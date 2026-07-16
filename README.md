@@ -170,6 +170,7 @@ Default HTTP URL from launch settings:
 ## 4. Database migrations
 
 The application runs `Database.Migrate()` on startup, so schema updates are applied automatically when the API starts.
+The local SQLite database file is generated automatically on startup and is not committed to source control.
 
 If you prefer explicit migration execution (when EF CLI tools are installed), run:
 

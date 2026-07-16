@@ -79,6 +79,17 @@ public sealed class SubmitOrderIntegrationTests
         using var json = await ReadJsonAsync(response);
 
         AssertProblem(response, json, HttpStatusCode.BadRequest, "/problems/payment-gateway-not-found", "Payment gateway not found");
+        (await factory.CountOrdersAsync(request.OrderNumber)).Should().Be(0);
+
+        var getResponse = await client.GetAsync($"/api/orders/{request.OrderNumber}");
+        using var getJson = await ReadJsonAsync(getResponse);
+        AssertProblem(
+            getResponse,
+            getJson,
+            HttpStatusCode.NotFound,
+            "/problems/order-not-found",
+            "Resource not found",
+            $"/api/orders/{request.OrderNumber}");
     }
 
     [Fact]

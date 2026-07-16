@@ -212,13 +212,38 @@ public sealed class OrderAppServiceTests
         repository.AddCalls.Should().Be(0);
     }
 
+    [Fact]
+    public async Task ProcessOrder_WhenGatewayIsNotRegistered_DoesNotPersistOrder()
+    {
+        var repository = new FakeOrderRepository();
+        var service = CreateService(
+            repository,
+            new ThrowingPaymentGatewayResolver(PaymentGatewayType.MockFailure));
+        var command = CreateValidCommand() with
+        {
+            OrderNumber = "ORD-UNSUPPORTED",
+            PaymentGatewayType = PaymentGatewayType.MockFailure
+        };
+
+        Func<Task> act = () => service.ProcessOrderAsync(command, CancellationToken.None);
+
+        var exceptionAssertion = await act.Should().ThrowAsync<PaymentGatewayNotFoundException>();
+        exceptionAssertion.Which.GatewayType.Should().Be(PaymentGatewayType.MockFailure);
+        repository.AddCalls.Should().Be(0);
+    }
+
     private static OrderAppService CreateService(FakeOrderRepository repository, IPaymentGateway gateway)
+    {
+        var resolver = new FakePaymentGatewayResolver(gateway);
+        return CreateService(repository, resolver);
+    }
+
+    private static OrderAppService CreateService(FakeOrderRepository repository, IPaymentGatewayResolver resolver)
     {
         var mapperConfig = new MapperConfiguration(
             config => { config.AddProfile<ApplicationMappingProfile>(); },
             NullLoggerFactory.Instance);
 
-        var resolver = new FakePaymentGatewayResolver(gateway);
         return new OrderAppService(
             paymentGatewayResolver: resolver,
             orderRepository: repository,
@@ -265,6 +290,15 @@ public sealed class OrderAppServiceTests
     private sealed class FakePaymentGatewayResolver(IPaymentGateway gateway) : IPaymentGatewayResolver
     {
         public IPaymentGateway Resolve(PaymentGatewayType gatewayType) => gateway;
+    }
+
+    private sealed class ThrowingPaymentGatewayResolver(PaymentGatewayType missingGatewayType) : IPaymentGatewayResolver
+    {
+        public IPaymentGateway Resolve(PaymentGatewayType gatewayType)
+        {
+            gatewayType.Should().Be(missingGatewayType);
+            throw new PaymentGatewayNotFoundException(gatewayType);
+        }
     }
 
     private sealed class SpyPaymentGateway(PaymentGatewayType gatewayType) : IPaymentGateway
