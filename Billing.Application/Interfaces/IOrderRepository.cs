@@ -4,7 +4,7 @@ namespace Billing.Application.Interfaces;
 
 public interface IOrderRepository
 {
-    Task<Order> GetByOrderNumberAsync(
+    Task<Order?> GetByOrderNumberAsync(
         string orderNumber,
         CancellationToken cancellationToken);
 

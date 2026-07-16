@@ -13,4 +13,16 @@ public sealed class Order
     public DateTime CreatedAt { get; set; }
     public DateTime? ProcessedAt { get; set; }
     public string? FailureReason { get; set; }
+
+    public bool IsEquivalentTo(
+        string userId,
+        decimal payableAmount,
+        int paymentGatewayId,
+        string? description)
+    {
+        return UserId == userId
+            && Amount == payableAmount
+            && PaymentGatewayId == paymentGatewayId
+            && string.Equals(Description, description, StringComparison.Ordinal);
+    }
 }

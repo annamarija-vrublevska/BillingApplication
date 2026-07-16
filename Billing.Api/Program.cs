@@ -6,7 +6,9 @@ using Billing.Application.Services;
 using Billing.Application.Validation;
 using Billing.Infrastructure;
 using Billing.Infrastructure.PaymentGateways;
+using Billing.Infrastructure.Persistence;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 using System.Text.Json.Serialization;
 
@@ -54,6 +56,13 @@ builder.Services.AddScoped<IValidator<CreateOrderCommand>, CreateOrderCommandVal
 builder.Services.AddScoped<IPaymentGatewayResolver, PaymentGatewayResolver>();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+    dbContext.Database.EnsureDeleted();
+    dbContext.Database.Migrate();
+}
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
