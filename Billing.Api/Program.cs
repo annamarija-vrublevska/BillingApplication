@@ -1,7 +1,11 @@
+using Billing.Api.ExceptionHandlers;
 using Billing.Api.Mapping;
 using Billing.Application.Interfaces;
+using Billing.Application.Models;
 using Billing.Application.Services;
+using Billing.Application.Validation;
 using Billing.Infrastructure.PaymentGateways;
+using FluentValidation;
 using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,9 +21,14 @@ builder.Services.AddSwaggerGen(options =>
     var xml = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var path = Path.Combine(AppContext.BaseDirectory, xml);
 
-    options.IncludeXmlComments(path);
+    if (File.Exists(path))
+    {
+        options.IncludeXmlComments(path);
+    }
 });
 
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
 builder.Services.AddAutoMapper(cfg =>
@@ -31,18 +40,23 @@ builder.Services.AddAutoMapper(cfg =>
 builder.Services.AddScoped<IPaymentGateway, SwedbankPaymentGatewayMock>();
 builder.Services.AddScoped<IPaymentGateway, SebPaymentGatewayMock>();
 builder.Services.AddScoped<IOrderAppService, OrderAppService>();
+builder.Services.AddScoped<IValidator<CreateOrderCommand>, CreateOrderCommandValidator>();
 builder.Services.AddScoped<IPaymentGatewayResolver, PaymentGatewayResolver>();
-
-builder.Services.AddControllers();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+else
+{
+    app.UseHsts();
 }
 
 app.UseHttpsRedirection();
