@@ -39,7 +39,6 @@ public sealed class SubmitOrderIntegrationTests
         receipt.ConfirmationNumber.Should().NotBeNullOrWhiteSpace();
         receipt.Timestamp.Should().NotBe(default);
         receipt.Status.Should().Be(Domain.Models.OrderStatus.Paid);
-        receipt.IsExistingOrder.Should().BeFalse();
     }
 
     [Fact]
@@ -305,6 +304,32 @@ public sealed class SubmitOrderIntegrationTests
             "/problems/order-not-found",
             "Resource not found",
             "/api/orders/ORD-NOT-FOUND-1");
+    }
+
+    [Fact]
+    public async Task SwaggerJson_IsAvailable()
+    {
+        await using var factory = new BillingApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/swagger/v1/swagger.json");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.Should().Contain("json");
+    }
+
+    [Fact]
+    public async Task DemoUiRoot_ReturnsHtmlPage()
+    {
+        await using var factory = new BillingApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/");
+        var body = await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("text/html");
+        body.Should().Contain("Billing Demo");
     }
 
     private static CreateOrderRequest CreateValidOrderRequest(

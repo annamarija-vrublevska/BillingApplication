@@ -37,7 +37,10 @@ public sealed class OrdersController(IOrderAppService orderAppService, IMapper m
             return Ok(response);
         }
 
-        return StatusCode(StatusCodes.Status201Created, response);
+        return CreatedAtRoute(
+            "GetOrderByNumber",
+            new { orderNumber = response.OrderNumber },
+            response);
     }
 
     /// <summary>

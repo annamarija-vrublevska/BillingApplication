@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Billing.Application.Services;
 
-public class OrderAppService(
+public sealed class OrderAppService(
     IPaymentGatewayResolver paymentGatewayResolver,
     IOrderRepository orderRepository,
     IMapper mapper,
@@ -44,7 +44,7 @@ public class OrderAppService(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            await MarkOrderAsFailedAsync(order, ex.Message, cancellationToken);
+            await MarkOrderAsFailedAsync(order, cancellationToken);
             logger.LogWarning(
                 "Payment failed for order {OrderNumber} using gateway {Gateway}.",
                 order.OrderNumber,
@@ -186,10 +186,9 @@ public class OrderAppService(
 
     private async Task MarkOrderAsFailedAsync(
         Order order,
-        string failureReason,
         CancellationToken cancellationToken)
     {
-        order.MarkAsFailed(failureReason);
+        order.MarkAsFailed("Payment processing failed.");
         await orderRepository.SaveChangesAsync(cancellationToken);
     }
 

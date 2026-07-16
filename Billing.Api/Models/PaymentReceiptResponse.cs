@@ -8,5 +8,4 @@ public sealed record PaymentReceiptResponse(
     DateTimeOffset Timestamp,
     OrderStatus Status,
     string? ConfirmationNumber,
-    string? FailureReason,
-    bool IsExistingOrder);
+    string? FailureReason);

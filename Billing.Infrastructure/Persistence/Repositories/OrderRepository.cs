@@ -29,14 +29,15 @@ public sealed class OrderRepository(BillingDbContext dbContext) : IOrderReposito
         await dbContext.Orders.AddAsync(order, cancellationToken);
     }
 
-    public Task SaveChangesAsync(
+    public async Task SaveChangesAsync(
         CancellationToken cancellationToken)
     {
         try
         {
-            return dbContext.SaveChangesAsync(cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (IsUniqueOrderNumberViolation(exception))
+        catch (DbUpdateException exception)
+            when (IsUniqueOrderNumberViolation(exception))
         {
             var conflictingOrderNumber = exception.Entries
                 .Select(entry => entry.Entity)

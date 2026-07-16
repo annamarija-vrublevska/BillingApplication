@@ -51,6 +51,7 @@ function renderSuccess(status, body) {
     const processedAt = body?.timestamp
         ? new Date(body.timestamp).toLocaleString()
         : "-";
+    const isReplay = status === 200;
 
     result.innerHTML = `
         <div class="row"><strong>HTTP Status:</strong> ${escapeHtml(String(status))}</div>
@@ -58,7 +59,7 @@ function renderSuccess(status, body) {
         <div class="row"><strong>Amount:</strong> ${escapeHtml(String(body?.amount ?? "-"))}</div>
         <div class="row"><strong>Confirmation Number:</strong> ${escapeHtml(body?.confirmationNumber ?? "-")}</div>
         <div class="row"><strong>Processed At:</strong> ${escapeHtml(processedAt)}</div>
-        <div class="row"><strong>Existing Order Replay:</strong> ${body?.isExistingOrder ? "Yes" : "No"}</div>
+        <div class="row"><strong>Existing Order Replay:</strong> ${isReplay ? "Yes" : "No"}</div>
     `;
 }
 
