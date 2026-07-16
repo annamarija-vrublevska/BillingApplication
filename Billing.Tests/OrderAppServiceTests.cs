@@ -35,6 +35,37 @@ public sealed class OrderAppServiceTests
     }
 
     [Fact]
+    public async Task ProcessOrder_WhenGatewayTimesOutTwice_RetriesAndEventuallySucceeds()
+    {
+        var repository = new FakeOrderRepository();
+        var gateway = new RetryPaymentGateway(PaymentGatewayType.MockSuccess, timeoutFailuresBeforeSuccess: 2);
+        var service = CreateService(repository, gateway);
+        var command = CreateValidCommand();
+
+        var result = await service.ProcessOrderAsync(command, CancellationToken.None);
+
+        result.Status.Should().Be(OrderStatus.Paid);
+        result.ConfirmationNumber.Should().Be("CONF-RETRY");
+        gateway.CallCount.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task ProcessOrder_WhenGatewayAlwaysTimesOut_ThrowsPaymentFailedExceptionAfterMaxRetries()
+    {
+        var repository = new FakeOrderRepository();
+        var gateway = new RetryPaymentGateway(PaymentGatewayType.MockSuccess, timeoutFailuresBeforeSuccess: int.MaxValue);
+        var service = CreateService(repository, gateway);
+        var command = CreateValidCommand();
+
+        Func<Task> act = () => service.ProcessOrderAsync(command, CancellationToken.None);
+
+        var exceptionAssertion = await act.Should().ThrowAsync<PaymentFailedException>();
+        exceptionAssertion.Which.OrderNumber.Should().Be(command.OrderNumber);
+        exceptionAssertion.Which.InnerException.Should().BeOfType<TimeoutException>();
+        gateway.CallCount.Should().Be(3);
+    }
+
+    [Fact]
     public async Task ProcessOrder_WhenOrderNumberIsEmpty_ThrowsValidationException()
     {
         var repository = new FakeOrderRepository();
@@ -181,7 +212,7 @@ public sealed class OrderAppServiceTests
         repository.AddCalls.Should().Be(0);
     }
 
-    private static OrderAppService CreateService(FakeOrderRepository repository, SpyPaymentGateway gateway)
+    private static OrderAppService CreateService(FakeOrderRepository repository, IPaymentGateway gateway)
     {
         var mapperConfig = new MapperConfiguration(
             config => { config.AddProfile<ApplicationMappingProfile>(); },
@@ -250,6 +281,33 @@ public sealed class OrderAppServiceTests
                 Amount: request.Amount,
                 Timestamp: DateTimeOffset.UtcNow,
                 ConfirmationNumber: "CONF-MOCK"));
+        }
+    }
+
+    private sealed class RetryPaymentGateway(PaymentGatewayType gatewayType, int timeoutFailuresBeforeSuccess)
+        : IPaymentGateway
+    {
+        private int _remainingTimeoutFailures = timeoutFailuresBeforeSuccess;
+
+        public int CallCount { get; private set; }
+
+        public PaymentGatewayType GatewayType { get; } = gatewayType;
+
+        public Task<PaymentResult> ProcessPaymentAsync(PaymentRequest request, CancellationToken cancellationToken)
+        {
+                CallCount++;
+
+                if (_remainingTimeoutFailures > 0)
+                {
+                    _remainingTimeoutFailures--;
+                    throw new TimeoutException("Simulated transient timeout.");
+                }
+
+                return Task.FromResult(new PaymentResult(
+                    OrderNumber: request.OrderNumber,
+                    Amount: request.Amount,
+                    Timestamp: DateTimeOffset.UtcNow,
+                    ConfirmationNumber: "CONF-RETRY"));
         }
     }
 }

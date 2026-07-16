@@ -100,6 +100,42 @@ public sealed class SubmitOrderIntegrationTests
     }
 
     [Fact]
+    public async Task SubmitOrder_WithTransientTimeouts_RetriesAndReturnsReceipt()
+    {
+        await using var factory = new BillingApiFactory();
+        factory.GatewayController.SetBehaviorSequence(
+            PaymentGatewayType.MockRetry,
+            TestPaymentGatewayBehavior.Timeout,
+            TestPaymentGatewayBehavior.Timeout,
+            TestPaymentGatewayBehavior.Success);
+        using var client = factory.CreateClient();
+
+        var request = CreateValidOrderRequest(orderNumber: "ORD-RETRY-SUCCESS-1", gatewayType: PaymentGatewayType.MockRetry);
+        var response = await client.PostAsJsonAsync("/api/orders", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var receipt = await response.Content.ReadFromJsonAsync<PaymentReceiptResponse>(JsonOptions);
+        receipt.Should().NotBeNull();
+        receipt!.Status.Should().Be(Domain.Models.OrderStatus.Paid);
+        factory.GatewayController.GetCallCount(PaymentGatewayType.MockRetry).Should().Be(3);
+    }
+
+    [Fact]
+    public async Task SubmitOrder_WithPersistentTimeouts_ReturnsUnprocessableEntityAfterRetries()
+    {
+        await using var factory = new BillingApiFactory();
+        factory.GatewayController.SetBehavior(PaymentGatewayType.MockRetry, TestPaymentGatewayBehavior.Timeout);
+        using var client = factory.CreateClient();
+
+        var request = CreateValidOrderRequest(orderNumber: "ORD-RETRY-FAIL-1", gatewayType: PaymentGatewayType.MockRetry);
+        var response = await client.PostAsJsonAsync("/api/orders", request);
+        using var json = await ReadJsonAsync(response);
+
+        AssertProblem(response, json, HttpStatusCode.UnprocessableEntity, "/problems/payment-failed", "Payment failed");
+        factory.GatewayController.GetCallCount(PaymentGatewayType.MockRetry).Should().Be(3);
+    }
+
+    [Fact]
     public async Task SubmitOrder_WithSameRequestTwice_ProcessesPaymentOnce()
     {
         await using var factory = new BillingApiFactory();

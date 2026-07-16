@@ -52,7 +52,7 @@ public class OrderAppService(
         PaymentResult paymentResult;
         try
         {
-            paymentResult = await gateway.ProcessPaymentAsync(paymentRequest, cancellationToken);
+            paymentResult = await ProcessPaymentWithRetryAsync(gateway, paymentRequest, order, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -97,6 +97,42 @@ public class OrderAppService(
             ProcessedAt: processedAt,
             ConfirmationNumber: order.ConfirmationNumber,
             FailureReason: order.FailureReason);
+    }
+
+    private async Task<PaymentResult> ProcessPaymentWithRetryAsync(
+        IPaymentGateway gateway,
+        PaymentRequest paymentRequest,
+        Order order,
+        CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 3;
+        const int retryDelayMilliseconds = 200;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                return await gateway.ProcessPaymentAsync(
+                    paymentRequest,
+                    cancellationToken);
+            }
+            catch (TimeoutException ex) when (attempt < maxAttempts)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Transient payment failure for order {OrderNumber}. Retrying attempt {NextAttempt}/{MaxAttempts}.",
+                    order.OrderNumber,
+                    attempt + 1,
+                    maxAttempts);
+
+                await Task.Delay(
+                    retryDelayMilliseconds,
+                    cancellationToken);
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Payment retry loop completed without returning a result.");
     }
 
     private async Task<CreateOrderResult?> TryGetIdempotentResultAsync(

@@ -43,6 +43,9 @@ public sealed class BillingApiFactory(Action<IServiceCollection>? configureServi
             services.AddScoped<IPaymentGateway>(sp => new ControlledPaymentGateway(
                 PaymentGatewayType.MockFailure,
                 sp.GetRequiredService<TestPaymentGatewayController>()));
+            services.AddScoped<IPaymentGateway>(sp => new ControlledPaymentGateway(
+                PaymentGatewayType.MockRetry,
+                sp.GetRequiredService<TestPaymentGatewayController>()));
 
             configureServices?.Invoke(services);
         });

@@ -8,7 +8,8 @@ public sealed class TestPaymentGatewayController
     private readonly Dictionary<PaymentGatewayType, GatewayState> _states = new()
     {
         [PaymentGatewayType.MockSuccess] = new GatewayState(),
-        [PaymentGatewayType.MockFailure] = new GatewayState()
+        [PaymentGatewayType.MockFailure] = new GatewayState(),
+        [PaymentGatewayType.MockRetry] = new GatewayState()
     };
 
     public void SetBehavior(PaymentGatewayType gatewayType, TestPaymentGatewayBehavior behavior)
@@ -19,6 +20,12 @@ public sealed class TestPaymentGatewayController
     public int GetCallCount(PaymentGatewayType gatewayType)
     {
         return _states[gatewayType].CallCount;
+    }
+
+    public void SetBehaviorSequence(PaymentGatewayType gatewayType, params TestPaymentGatewayBehavior[] behaviors)
+    {
+        ArgumentNullException.ThrowIfNull(behaviors);
+        _states[gatewayType].BehaviorSequence = new Queue<TestPaymentGatewayBehavior>(behaviors);
     }
 
     public void BlockFirstCall(PaymentGatewayType gatewayType)
@@ -65,7 +72,11 @@ public sealed class TestPaymentGatewayController
             }
         }
 
-        return state.Behavior switch
+        var behavior = state.BehaviorSequence?.Count > 0
+            ? state.BehaviorSequence.Dequeue()
+            : state.Behavior;
+
+        return behavior switch
         {
             TestPaymentGatewayBehavior.Success => new PaymentResult(
                 OrderNumber: request.OrderNumber,
@@ -74,6 +85,7 @@ public sealed class TestPaymentGatewayController
                 ConfirmationNumber: $"CONF-{request.OrderNumber}"),
             TestPaymentGatewayBehavior.Declined => throw new InvalidOperationException("Test payment declined."),
             TestPaymentGatewayBehavior.UnexpectedException => throw new Exception("Test unexpected payment exception."),
+            TestPaymentGatewayBehavior.Timeout => throw new TimeoutException("Test transient timeout."),
             _ => throw new InvalidOperationException("Unsupported test gateway behavior.")
         };
     }
@@ -86,5 +98,6 @@ public sealed class TestPaymentGatewayController
         public bool HasBlocked { get; set; }
         public TaskCompletionSource<bool>? FirstCallStarted { get; set; }
         public TaskCompletionSource<bool>? ReleaseBlockedCall { get; set; }
+        public Queue<TestPaymentGatewayBehavior>? BehaviorSequence { get; set; }
     }
 }
